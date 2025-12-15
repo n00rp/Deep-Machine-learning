@@ -4,11 +4,16 @@ import torch.optim as optim
 from src.preprocessing import deprocess_image
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
-def activation_maximization(model, layer_name, filter_index, iterations=100, learning_rate=0.1, device='cpu'):
+def activation_maximization(model, layer_name, filter_index, iterations=100, learning_rate=0.1, device='cpu', save_progress=False, output_dir='outputs/activation_max'):
     """
     Utför gradient ascent på en slumpmässig inputbild för att maximera aktiveringen
     av ett specifikt filter i ett givet lager.
+    
+    Args:
+        save_progress: Om True, sparar bild var 50:e iteration
+        output_dir: Mapp där progression-bilder sparas
     """
     model.eval()
     
@@ -40,6 +45,10 @@ def activation_maximization(model, layer_name, filter_index, iterations=100, lea
     
     print(f"Startar optimering av {layer_name}, filter {filter_index} i {iterations} iterationer...")
     
+    # Skapa output-mapp om den inte finns
+    if save_progress:
+        os.makedirs(output_dir, exist_ok=True)
+    
     for i in range(iterations):
         optimizer.zero_grad()
         
@@ -64,6 +73,11 @@ def activation_maximization(model, layer_name, filter_index, iterations=100, lea
         
         if i % 20 == 0:
             print(f"Iter {i}: Loss {loss.item():.4f}")
+            
+        # Spara progression var 50:e iteration
+        if save_progress and i % 50 == 0:
+            img = deprocess_image(input_tensor)
+            plt.imsave(f'{output_dir}/layer_{layer_name}_filter_{filter_index}_iter_{i}.png', img)
             
     handle.remove()
     
