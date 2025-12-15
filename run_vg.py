@@ -98,35 +98,74 @@ def main():
     
     # 3. DeepDream Experiment
     print("\n--- Del 2: DeepDream ---")
-    img_path = 'data/images/castle.png'
-    dream_img = None
     
-    try:
-        img_tensor = load_image(img_path, device)
-        layers_to_dream = ['features.24', 'features.28']
-        print(f"Drömmer med lager: {layers_to_dream}")
+    # Lista med alla bilder i data/images mappen
+    img_paths = [
+        'data/images/unnamed.jpg',
+        'data/images/castle.png',
+        'data/images/dog.png',
+        'data/images/Mona-Lisa-oil-wood-panel-Leonardo-da.webp',
+        'data/images/{003A40A1-4141-467D-8505-A017AF111C07}.png'
+    ]
+    
+    dream_results = []
+    dream_titles = []
+    
+    # Loopa igenom alla bilder
+    for img_path in img_paths:
+        print(f"\nBehandlar bild: {img_path}")
+        dream_img = None
         
         try:
-            dream_img = deep_dream(model, img_tensor, layers_to_dream, iterations=10, num_octaves=3, device=device)
-        except (RuntimeError, torch.AcceleratorError) as e:
-            print(f"GPU fel vid DeepDream: {e}. Faller tillbaka till CPU...")
-            cpu_device = torch.device('cpu')
-            # Ladda modellspecifikt för CPU
-            model_cpu = load_model(cpu_device)
-            img_cpu = load_image(img_path, cpu_device)
-            dream_img = deep_dream(model_cpu, img_cpu, layers_to_dream, iterations=10, num_octaves=3, device=cpu_device)
+            img_tensor = load_image(img_path, device)
+            layers_to_dream = ['features.24', 'features.28']
+            print(f"Drömmer med lager: {layers_to_dream}")
             
-    except FileNotFoundError:
-        print("Bild saknas.")
+            try:
+                dream_img = deep_dream(model, img_tensor, layers_to_dream, iterations=100, num_octaves=3, device=device)
+            except (RuntimeError, torch.AcceleratorError) as e:
+                print(f"GPU fel vid DeepDream: {e}. Faller tillbaka till CPU...")
+                cpu_device = torch.device('cpu')
+                # Ladda modellspecifikt för CPU
+                model_cpu = load_model(cpu_device)
+                img_cpu = load_image(img_path, cpu_device)
+                dream_img = deep_dream(model_cpu, img_cpu, layers_to_dream, iterations=100, num_octaves=3, device=cpu_device)
+                
+        except FileNotFoundError:
+            print(f"Bild saknas: {img_path}")
+            continue
+        
+        if dream_img is not None:
+            dream_results.append(dream_img)
+            # Skapa titel från filnamn
+            img_name = img_path.split('/')[-1].split('.')[0]
+            dream_titles.append(f"DeepDream - {img_name}")
 
-    # 4. Visa DeepDream resultat separat
-    if dream_img is not None:
-        plt.figure(figsize=(10, 8))
-        plt.imshow(dream_img)
-        plt.title("DeepDream Resultat", fontsize=14)
-        plt.axis('off')
-        plt.savefig('outputs/deep_dream/dream_result.png')
+    # 4. Visa alla DeepDream resultat
+    if dream_results:
+        cols = min(2, len(dream_results))  # 2 kolumner för bättre visning
+        rows = (len(dream_results) + cols - 1) // cols
+        
+        plt.figure(figsize=(12, 5 * rows))
+        for i, (img, title) in enumerate(zip(dream_results, dream_titles)):
+            plt.subplot(rows, cols, i+1)
+            plt.imshow(img)
+            plt.title(title, fontsize=12)
+            plt.axis('off')
+        
+        plt.tight_layout()
+        plt.savefig('outputs/deep_dream/all_dream_results.png', bbox_inches='tight', dpi=150)
         plt.show()
+        
+        # Spara varje bild separat också
+        for i, (img, title) in enumerate(zip(dream_results, dream_titles)):
+            img_name = title.replace("DeepDream - ", "").replace(" ", "_")
+            plt.figure(figsize=(10, 8))
+            plt.imshow(img)
+            plt.title(title, fontsize=14)
+            plt.axis('off')
+            plt.savefig(f'outputs/deep_dream/dream_{img_name}.png', bbox_inches='tight', dpi=150)
+            plt.close()  # Stäng figuren för att spara minne
     
     print("\nVG-delen klar! Resultat sparade i outputs/ mappen.")
 
